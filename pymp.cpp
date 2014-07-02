@@ -224,7 +224,5 @@ static py::object unpack( py::object bytes )
 
 BOOST_PYTHON_MODULE( pymp )
 {
-    using namespace boost::python;
-
-    def( "unpack", unpack );
+    py::def( "unpack", unpack );
 }
