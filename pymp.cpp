@@ -1,7 +1,6 @@
 #include <cassert>
-#include <fstream>
+#include <string>
 #include <functional>
-#include <iostream>
 #include <stack>
 #include <boost/python.hpp>
 
@@ -122,49 +121,19 @@ private:
         throw std::runtime_error( "can't read object: unknown type" );
     }
 
-    void read_kv( py::dict dict, uint32_t n )
-    {
-        if( --n )
-        {
-            _stack.emplace( [=]() mutable
-            {
-                read_kv( dict, n );
-            } );
-        }
-
-        auto k = read_obj();
-        auto v = read_obj();
-
-        dict[ k ] = v;
-    }
-
     py::object read_map( uint32_t n )
     {
         py::dict dict;
 
-        if( n )
+        for( ; n; --n )
         {
             _stack.emplace( [=]() mutable 
             {
-                read_kv( dict, n );
+                auto key = read_obj(); // read key for one step
+
+                dict[ key ] = read_obj();
             } );
         }
-
-           /*
-        for( ; n; --n )
-        {
-            _stack.emplace( [=]() mutable
-            {
-                auto k = read_obj();
-
-                _stack.emplace( [=]() mutable 
-                {
-                    auto v = read_obj();
-
-                    dict[ k ] = v;
-                } );
-            } );
-        }*/
 
         return dict;
     }
@@ -200,8 +169,6 @@ private:
 
     static bool read_bytes_( cmp_ctx_t * ctx, void * data, size_t limit )
     {
-        std::cout << "[read_bytes_] " << limit << std::endl;
-
         auto self = static_cast< Reader * >( ctx->buf );
 
         assert( self && &self->_cmp == ctx );
@@ -219,7 +186,7 @@ private:
 
         _ptr += len;
 
-        return _ptr != _end;
+        return len == limit;
     }
     
 private:
