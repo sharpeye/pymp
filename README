@@ -1,0 +1,7 @@
+Build boost.python:
+> cd boost_1_55_0
+> ./booststrab.sh
+> ./b2 --with-python stage
+
+Use cmake to generate makefile:
+> cmake -D BOOST_ROOT:FILEPATH=boost_1_55_0 .
