@@ -4,4 +4,6 @@ Build boost.python:
 > ./b2 --with-python stage
 
 Use cmake to generate makefile:
-> cmake -D BOOST_ROOT:FILEPATH=boost_1_55_0 .
+> mkdir build
+> cd build
+> cmake -D BOOST_ROOT:FILEPATH=boost_1_55_0 ..
