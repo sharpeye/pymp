@@ -10,36 +10,14 @@
 
 namespace py = boost::python;
 
-static bool reader(cmp_ctx_t *ctx, void *data, size_t limit) 
-{
-    auto& file = *reinterpret_cast< std::ifstream * >( ctx->buf );
-
-    file.read( static_cast< char * >( data ), limit );
-
-    return file.gcount() == limit;
-}
-
-static size_t writer(cmp_ctx_t *ctx, const void *data, size_t count) 
-{
-    auto& file = *reinterpret_cast< std::ofstream * >( ctx->buf );
-
-    file.write( static_cast< char const * >( data ), count );
-
-    return file ? count : 0;
-}
-
 class Reader
 {
 public:
-    explicit Reader( std::string const & filename )
-        : _file( filename, std::ios::binary )
+    Reader( char const * bytes, size_t len )
+        : _ptr( bytes )
+        , _end( bytes + len )
     {
-        if( !_file )
-        {
-            throw std::runtime_error( "Can't open file " + filename );
-        }
-
-        cmp_init( &_cmp, &_file, reader, writer );
+        cmp_init( &_cmp, this, &Reader::read_bytes_, nullptr );
     }
 
     py::object operator() ()
@@ -214,22 +192,65 @@ private:
         {
             s.resize( size );
 
-            reader( &_cmp, &s[ 0 ], s.length() );
+            read_bytes( &s[ 0 ], s.length() );
         }
 
         return py::object( s );
     }
+
+    static bool read_bytes_( cmp_ctx_t * ctx, void * data, size_t limit )
+    {
+        std::cout << "[read_bytes_] " << limit << std::endl;
+
+        auto self = static_cast< Reader * >( ctx->buf );
+
+        assert( self && &self->_cmp == ctx );
+
+        return self->read_bytes( data, limit );
+    }
+
+    bool read_bytes( void * data, size_t limit )
+    {
+        size_t max_len = _end - _ptr;
+
+        auto len = (std::min)( limit, max_len );
+
+        memcpy( data, _ptr, len );
+
+        _ptr += len;
+
+        return _ptr != _end;
+    }
     
 private:
-    std::ifstream _file;
     std::stack< std::function< void () > > _stack;
     cmp_ctx_t _cmp;
 
+    char const * _ptr;
+    char const * _end;
+
 }; // Reader
 
-static py::object read_obj( char const* filename )
+static py::object unpack( py::object bytes )
 {
-    Reader r( filename );
+    auto p = bytes.ptr();
+
+    if( !p )
+    {
+        throw std::runtime_error( "can't unpack: no object" );
+    }
+
+    const void * data = nullptr;
+    Py_ssize_t size = 0;
+
+    PyObject_AsReadBuffer( p, &data, &size );
+
+    if( !data || !size )
+    {
+        throw std::runtime_error( "can't unpack: no data" );
+    }
+
+    Reader r( reinterpret_cast< char const * >( data ), size );
 
     return r();
 }
@@ -238,5 +259,5 @@ BOOST_PYTHON_MODULE( pymp )
 {
     using namespace boost::python;
 
-    def( "read", read_obj );
+    def( "unpack", unpack );
 }
