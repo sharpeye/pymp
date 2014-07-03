@@ -1,5 +1,4 @@
 #include <cassert>
-#include <functional>
 #include <vector>
 #include <boost/python.hpp>
 
