@@ -51,7 +51,7 @@ public:
         {
             if( item.obj )
             {
-                py::decref( item.key );
+                py::decref( item.obj );
             }
 
             if( item.key )
