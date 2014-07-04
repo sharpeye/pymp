@@ -45,6 +45,22 @@ public:
         cmp_init( &_cmp, this, &Unpacker::read_bytes_, nullptr );
     }
 
+    ~Unpacker()
+    {
+        for( auto & item : _stack )
+        {
+            if( item.obj )
+            {
+                py::decref( item.key );
+            }
+
+            if( item.key )
+            {
+                py::decref( item.key );
+            }
+        }
+    }
+
     py::object unpack()
     {
         for( ;; )
@@ -78,6 +94,8 @@ private:
             }
 
             elem = top.obj;
+
+            top.obj = nullptr;
 
             _stack.pop_back();
         }
@@ -283,7 +301,14 @@ private:
         {
             if( is_list )
             {
-                return PyList_SetItem( obj, index, elem );
+                auto hr = PyList_SetItem( obj, index, elem );
+
+                if( hr )
+                {
+                    py::decref( elem );
+                }
+
+                return hr;
             }
            
             if( index % 2 == 1 )
